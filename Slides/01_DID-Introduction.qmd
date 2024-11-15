@@ -1,12 +1,11 @@
 ---
 title: "Modern Approaches to Difference-in-Differences"
-subtitle: "Session 1: Introduction to Difference-in-Differences"
 format: clean-revealjs
 author:
   - name: Brantly Callaway
 email: brantly.callaway@uga.edu
 affiliations: University of Georgia
-date: Oct. 28-31, 2024
+date: Nov. 14, 2024
 bibliography: refs.bib
 knitr:
   opts_chunk:
@@ -16,6 +15,9 @@ knitr:
 ```{r echo=FALSE}
 library(revealEquations)
 ```
+
+<!--subtitle: "Session 1: Introduction to Difference-in-Differences"-->
+
 
 ## Plan for the Workshop
 <!--## Plan for the Session-->
@@ -33,6 +35,8 @@ $\newcommand{\E}{\mathbb{E}}
 \newcommand{\indicator}[1]{ \mathbf{1}\{#1\} }
 \newcommand{\T}{T}$
 
+
+<!--
 1. Introduction to Difference-in-Differences
 
     1. DID Basics in 2 Period Case
@@ -50,11 +54,10 @@ $\newcommand{\E}{\mathbb{E}}
 4. Dealing with More Complicated Treatment Regimes
 
 5. Alternative Identification Strategies
+-->
 
 
-<!--
-
-1. Intro to DID & Textbook 2 Period Case
+1. Introduction to DID & Textbook 2 Period Case
 
 2. Staggered Treatment Adoption
    * Issues with Traditional Regression Approaches
@@ -62,13 +65,12 @@ $\newcommand{\E}{\mathbb{E}}
 
 3. Application/Code for Minimum Wage Policy
 
--->
 
 ## Additional Resources
 
-<span class="alert">Additional Workshop Materials: </span> [https://bcallaway11.github.io/bank-of-portugal/](https://bcallaway11.github.io/bank-of-portugal/)
+<span class="alert">Additional Workshop Materials: </span> [https://bcallaway11.github.io/notre-dame/](https://bcallaway11.github.io/notre-dame/)
 
-  * Slides, code, data, etc. <!--for the workshop-->
+  * Slides, code, data, etc.
 
 . . .
 
@@ -79,19 +81,19 @@ $\newcommand{\E}{\mathbb{E}}
 
   * Baker, Callaway, Cunningham, Goodman-Bacon, Sant'Anna (2024), draft posted very soon
 
-<!--
 
 . . .
 
-<span class="alert">Advanced Materials: </span> [https://github.com/bcallaway11/lsu-workshop](https://github.com/bcallaway11/lsu-workshop)
+<span class="alert">Advanced Materials: </span> [https://github.com/bcallaway11/bank-of-portugal](https://github.com/bcallaway11/bank-of-portugal)
 
   * Relaxing the parallel trends assumption by including covariates
+
+  * Common issues in empirical work
 
   * Dealing with more complicated treatment regimes
 
   * Alternative identification strategies (e.g., conditioning on lagged outcome, change-in-changes, others)
 
--->
 
 # Part 1: Introduction to Difference-in-Differences {visibility="uncounted"}
 
