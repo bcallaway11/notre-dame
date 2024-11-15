@@ -1,5 +1,6 @@
 ---
-title: "Modern Approaches to Difference-in-Differences"
+title: "Difference-in-Differences"
+subtitle: "Recent Methodological Advances and their Relevance to Empirical Work"
 format: clean-revealjs
 author:
   - name: Brantly Callaway
@@ -16,11 +17,10 @@ knitr:
 library(revealEquations)
 ```
 
-<!--subtitle: "Session 1: Introduction to Difference-in-Differences"-->
 
 
 ## Plan for the Workshop
-<!--## Plan for the Session-->
+
 $\newcommand{\E}{\mathbb{E}}
 \newcommand{\E}{\mathbb{E}}
 \newcommand{\var}{\mathrm{var}}
@@ -35,6 +35,20 @@ $\newcommand{\E}{\mathbb{E}}
 \newcommand{\indicator}[1]{ \mathbf{1}\{#1\} }
 \newcommand{\T}{T}$
 
+
+1. Introduction to DID & Textbook 2 Period Case
+
+2. Staggered Treatment Adoption
+   * Issues with Traditional Regression Approaches
+   * New Approaches
+
+3. Application/Code for Minimum Wage Policy
+
+
+<!--
+title: "Modern Approaches to Difference-in-Differences"
+subtitle: "Session 1: Introduction to Difference-in-Differences"-->
+<!--## Plan for the Session-->
 
 <!--
 1. Introduction to Difference-in-Differences
@@ -55,16 +69,6 @@ $\newcommand{\E}{\mathbb{E}}
 
 5. Alternative Identification Strategies
 -->
-
-
-1. Introduction to DID & Textbook 2 Period Case
-
-2. Staggered Treatment Adoption
-   * Issues with Traditional Regression Approaches
-   * New Approaches
-
-3. Application/Code for Minimum Wage Policy
-
 
 ## Additional Resources
 
