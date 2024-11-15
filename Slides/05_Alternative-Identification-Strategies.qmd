@@ -1,0 +1,947 @@
+---
+title: "Modern Approaches to Difference-in-Differences"
+subtitle: "Session 5: Alternative Identification Strategies"
+format: clean-revealjs
+author:
+  - name: Brantly Callaway
+    email: brantly.callaway@uga.edu
+    affiliations: University of Georgia
+knitr:
+  opts_chunk:
+    echo: true
+bibliography: refs.bib
+---
+
+## Outline
+
+## Outline
+
+1. Introduction to Difference-in-Differences
+
+2. Including Covariates in the Parallel Trends Assumption
+
+3. Common Extensions for Empirical Work
+
+4. Dealing with More Complicated Treatment Regimes
+
+5. [Alternative Identification Strategies]{.alert}
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+# load packages
+library(revealEquations)
+library(did)
+library(BMisc)
+library(twfeweights)
+library(fixest)
+library(modelsummary)
+library(ggplot2)
+library(pte)
+library(qte)
+library(ife)
+library(dplyr)
+library(tidyr)
+load("data2.RData")
+```
+
+## Plan
+
+$\newcommand{\E}{\mathbb{E}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\var}{\mathrm{var}}
+\newcommand{\cov}{\mathrm{cov}}
+\newcommand{\Var}{\mathrm{var}}
+\newcommand{\Cov}{\mathrm{cov}}
+\newcommand{\Corr}{\mathrm{corr}}
+\newcommand{\corr}{\mathrm{corr}}
+\newcommand{\L}{\mathrm{L}}
+\renewcommand{\P}{\mathrm{P}}
+\newcommand{\independent}{{\perp\!\!\!\perp}}
+\newcommand{\indicator}[1]{ \mathbf{1}\{#1\} }$ We have been following the [high-level strategy]{.alert-blue} of (1) targeting disaggregated parameters and then (2) combining them.
+
+. . .
+
+* This session: go back to staggered treatment setting, but use alternative identification strategies
+
+. . .
+
+[Examples in this part]{.alert}
+
+1. Lagged Outcome Unconfoundedness
+
+2. Change-in-Changes
+
+3. Interactive Fixed Effects
+
+. . .
+
+[Main high-level takeaway]{.alert-blue} Many of the insights that we have had previously continue to apply using other identification strategies
+
+
+<!--
+## How do we choose among identifying assumptions?
+
+<span class="alert-blue">View \#1:</span> Parallel trends as a purely reduced form assumption
+
+* For example, if you have extra pre-treatment periods, you can assess validity in pre-treatment periods
+
+. . .
+
+But this is certainly not the only possibility:
+
+  * In some disciplines (e.g., biostats) it is relatively more common to assume unconfoundedness conditional on lagged outcomes (i.e., the LOU approach)
+
+  * This is also what my undergraduate econometrics students almost always suggest (their judgement is not clouded by having thought about these things too much)
+
+  * Or, alternatively, why not take two differences (closely related to linear trends models) or even more...
+
+In my view, these seem like fair points
+
+## Model-based view
+
+[View \#2:]{.alert-blue} Models that lead to parallel trends assumption.  In economics, there are many models (here we'll focus on untreated potential outcomes) such as
+\begin{align*}
+  Y_{it}(0) = h_t(\eta_i, e_{it})
+\end{align*}
+where $\eta_i$ is unobserved heterogeneity and $e_{it}$ are idiosyncratic unobservables (you can add observed covariates if you want)
+
+. . .
+
+The parallel trends assumption comes from using the same sort of model, but layering on the additional functional form assumption
+
+$$Y_{it}(0) = \theta_t + \eta_i + e_{it}$$
+
+* which additively separates the time and unit effects.
+
+. . .
+
+[Additional references:]{.alert} @heckman-robb-1985, @heckman-ichimura-todd-1997, @athey-imbens-2006, @blundell-dias-2009, @chabe-2015, @ghanem-santanna-wuthrich-2022, @marx-tamer-tang-2022 all provide connections between models and different panel data approaches to causal inference
+
+-->
+
+# Lagged Outcome Unconfoundedness {visibility="uncounted"}
+
+## Introduction to Lagged Outcome Unconfoundedness
+
+[Intuition for Lagged Outcome identification strategies]{.alert-blue} is to compare:
+
+- Observed outcomes for treated units to observed outcomes for untreated units [conditional on having the same pre-treatment outcome(s)]{.alert}
+
+. . .
+
+Rough explanation: This is a version of unconfoundedness where the most important variable(s) to consider are lagged outcome(s)
+
+
+## Lagged Outcome Unconfoundedness with Two Periods
+
+<br>
+
+::: {.callout-note}
+
+### Lagged Outcome Unconfoundedness Assumption
+
+$$\E[Y_{t=2}(0) | Y_{t=1}(0), D=1] = \E[Y_{t=2}(0) | Y_{t=1}(0), D=0]$$
+
+:::
+
+[Explanation:]{.alert} On average, untreated potential outcomes in the 2nd period are the same for the treated group as for the untreated group conditional on having the same pre-treatment outcome
+
+```{r}
+#| echo: false
+#| results: "asis"
+
+title <- "Identification"
+
+before <- "Under LOU (plus an overlap condition), we can identify $ATT$:"
+
+after <- "
+
+. . .
+
+The previous equation is what we will use in estimation, but (for intuition), it is helpful to apply the L.I.E. to the first term so that:
+
+
+$$ ATT = \\E\\Big[\\E[Y_{t=2} | Y_{t=1}(0), D=1] - \\E[ Y_{t=2}(0) | Y_{t=1}(0), D=0] \\big| D=1\\Big]$$
+
+. . .
+
+$\\implies ATT$ is identified can be recovered by the difference in the average outcome for the treated group relative to the average outcome condional on lag for untreated group (this is averaged over the distribution of pre-treatment outcomes for the treated group)"
+
+eqlist <- list("ATT &= \\E[Y_{t=2} | D=1] - \\E[Y_{t=2}(0) | D=1] \\hspace{250pt}",
+               "&= \\E[Y_{t=2} | D=1] - \\E\\Big[\\E[ Y_{t=2}(0) | Y_{t=1}(0), D=1] \\big| D=1\\Big]",
+               "&=\\E[Y_{t=2} | D=1] - \\E\\Big[\\E[ Y_{t=2}(0) | Y_{t=1}(0), D=0] \\big| D=1\\Big]")
+
+step_by_step_eq(eqlist=eqlist,
+                before=before,
+                after=after,
+                title=title)
+```
+
+## LO Unconfoundedness Estimation
+
+Recall under LO unconfoundedness assumption:
+$$ATT=\E[Y_{t=2} | D=1] - \E\Big[\underbrace{\E[ Y_{t=2}(0) | Y_{t=1}(0), D=0]}_{\textrm{challenging to estimate}} | D=1\Big]$$
+
+. . .
+
+Most straightforward approach (regression adjustment), assume linear model: $Y_{it=2}(0) = \beta_0 + \beta_1 Y_{it=1}(0) + e_{it}$.  Estimate $\beta_0$ and $\beta_1$ using set of untreated observations.  Then,
+\begin{align*}
+  \widehat{ATT} = \frac{1}{n_1} \sum_{i=1}^n D_i Y_{it=2} - \frac{1}{n_1} \sum_{i=1}^n D_i(\hat{\beta}_0 + \hat{\beta}_1 Y_{it=1})
+\end{align*}
+
+. . .
+
+But also everything else we learned for DiD with covariates applies here: IPW, AIPW, etc.
+
+* Just replace the covariates with lagged outcomes
+
+
+```{r}
+#| echo: false
+#| results: "asis"
+
+title <- "Multiple Period Version of LO Unconfoundedness Assumption"
+
+before <- "
+
+::: {.callout-note}
+
+### Multi-period LOU Assumption
+
+For all groups $g \\in \\mathcal{G}$ and for all time periods $t=2,\\ldots,T$,
+$$  Y_{t}(0) \\independent G | Y_{t-1}(0) $$
+
+:::
+
+<br>
+
+. . .
+
+Applying a similar argument as before recursively
+
+"
+
+eqlist <- list("ATT(g,t) &= \\E[Y_{t}|G=g] - \\E\\Big[\\E[Y_{t} | Y_{g-1}, U=1] \\Big| G=g\\Big]",
+               "&= \\E\\Big[\\E[Y_t|Y_{g-1}, G=g] - \\E[Y_{t} | Y_{g-1}, U=1] \\Big| G=g\\Big]")
+
+after <- "
+
+i.e., it's the same as two period lagged outcome unconfoundedness, except that the [base period]{.alert} is now $g-1$.
+
+[[longer explanation](#lou-identification-explanation)]
+
+"
+
+step_by_step_eq(eqlist, before, after, title)
+```
+
+## Minimum Wage Example
+
+```{r eval=FALSE, warning=FALSE, message=FALSE}
+#| code-line-numbers: "|1,2,3|4,9,10"
+devtools::install_github("bcallaway11/pte")
+library(pte)
+# lagged outcomes identification strategy
+lo_res <- pte::pte_default(yname="lemp",
+                           tname="year",
+                           idname="id",
+                           gname="G",
+                           data=data2,
+                           d_outcome=FALSE,
+                           lagged_outcome_cov=TRUE)
+summary(lo_res)
+did::ggdid(lo_res$att_gt, ylim=c(-.2,0.05))
+ggpte(lo_res)
+```
+
+
+## LO Unconfoundedness $ATT(g,t)$
+
+```{r, fig.align="center", fig.width=7.5, fig.height=6, echo=FALSE, cache=TRUE, warning=FALSE}
+data2$G2 <- data2$G
+# lagged outcomes identification strategy
+lo_res <- pte::pte_default(yname="lemp",
+                           tname="year",
+                           idname="id",
+                           gname="G2",
+                           data=data2,
+                           d_outcome=FALSE,
+                           lagged_outcome_cov=TRUE)
+
+did::ggdid(lo_res$att_gt, ylim=c(-.2,0.05))
+```
+
+## LO Unconfoundedness $ATT^o$
+
+```{r echo=FALSE}
+summary(lo_res)
+```
+
+## LO Unconfoundedness Event Study
+
+```{r echo=FALSE, fig.align="center", fig.width=4.5, fig.height=3}
+ggpte(lo_res) + geom_hline(yintercept=0, size=1.2)
+```
+
+## Additional References for LOU
+
+* @ding-li-2019
+
+* @powell-griffin-wolfson-2023
+
+# Change-in-Changes {visibility="uncounted"}
+
+## Introduction to Change-in-Changes
+
+The idea of change-in-changes comes from @athey-imbens-2006 and builds on work on estimating non-separable production function models.  They consider the case where
+\begin{align*}
+  Y_{it}(0) = h_t(U_{it})
+\end{align*}
+where $h_t$ is a nonparametric, time-varying function.  To me, it is helpful to think of $U_{it} = \eta_i + e_{it}$.  This model (for the moment) generalizes the model that we used to rationalize parallel trends: $Y_{it}(0) = \theta_t + \eta_i + e_{it}$.
+
+. . .
+
+<span class="alert">Additional Conditions:</span>
+
+1. $U_{t} \overset{d}{=} U_{t'} | G$.  In words: the distribution of $U_{t}$ does not change over time given a particular group.  However, the distribution of $U_{t}$ can vary across groups.
+
+2. $U_{t}$ is scalar
+
+3. $h_t$ is stictly monotonically increasing $\implies$ we can invert it.
+
+4. Support condition: $\mathcal{U}_g \subseteq \mathcal{U}_0$ (support of $U_{t}$ for the treated group is a subset of the support of $U_{t}$ for the untreated group)
+
+::: {.notes}
+
+1. is more restrictive that required for DID.  In DID, the distribution of time-varying unobservables can change over time, but the time-varying function is more limited
+
+2. is arguably similar
+
+3. is similar
+
+4. $\implies \textrm{support}(Y_{t}(0))$ for the treated group is a subset of the of the support of untreated potential outcomes for the untreated group.  This condition is not required for the DID (roughly: no extrapolation here, this could be a good thing or not...; DID can have fundamentally different groups in terms of $\eta_i$, but not here)
+
+:::
+
+## Change-in-Changes Identification
+
+Under the conditions described above, you can show that
+
+\begin{align*}
+  ATT(g,t) = \E[Y_{t} | G=g] - \E\Big[Q_{Y_{t}(0)|U=1}\big(F_{Y_{g-1}(0)|U=1}(Y_{g-1}(0))\big) \Big| G=g \Big]
+\end{align*}
+where $Q_{Y_{t}(0)|U=1}(\tau)$ is the $\tau$-th quantile of $Y_{t}(0)$ for the never-treated group (e.g., if $\tau=0.5$, it is the median of $Y_{t}(0)$ for the never-treated group).
+
+. . .
+
+* [As an interesting side-comment, this is derived in @athey-imbens-2006, way before recent work on group-time average treatment effects, and it is pretty much exactly analogous to the "first step" that we have been emphasizing]
+
+::: {.notes}
+
+Explanation: working inside out, for some unit in group $g$, find it's "rank" in the untreated group in the pre-treatment periods, the map that to an observed outcome in the post-treatment period.  The outside expectation averages over all treated units.
+
+:::
+
+## Intuition for Change-in-Changes
+
+<span class="alert">Intuition: </span> Notice that, under parallel trends, we can re-write
+\begin{align*}
+  ATT(g,t) = \E[Y_{t}|G=g] - \E\left[ \Big(\E[Y_{t} | U=1] - \E[Y_{g-1} | U=1]\Big) + Y_{g-1} | G=g \right]
+\end{align*}
+which we can think of as: compare observed outcomes to, (an average of) taking observed outcomes in the pre-treatment period and accounting for how outcomes change over time in the untreated group across the same periods
+
+. . .
+
+For CIC, the intuition is the same, except the way that we "account for" how outcomes change over time during the same periods for the untreated group is a different.
+
+. . .
+
+Because these are different transformations, DID and CIC are non-nested approaches.
+
+
+
+## Comments
+
+CIC is a nice approach in many applications
+
+* In addition, to recovering $ATT(g,t)$, it is also possible to recover <span class="highlight">quantile treatment effect parameters</span> in this setting (these can allow you to more effectively study treatment effect heterogeneity and are closely related to social welfare calculations/comparisons)
+
+. . .
+
+Though it is less commonly used in empirical work than DID.
+
+* Need to estimate quantiles
+
+* Harder to include covariates (due to needing to estimate quantiles).  I think (not 100% sure though) that it is not possible (at least not obvious) if one can do a doubly robust version of CIC.
+
+* Support conditions can have real bite in some applications
+
+* Not as much software support
+
+
+
+## Minimum Wage Application
+
+```{r}
+#| eval: false
+#| code-line-numbers: "|1,2,3,4"
+devtools::install_github("bcallaway11/qte")
+library(qte)
+# change-in-changes
+cic_res <- qte::cic2(yname="lemp",
+                     gname="G",
+                     tname="year",
+                     idname="id",
+                     data=data2,
+                     boot_type="empirical",
+                     cl=4)
+summary(cic_res)
+ggpte(cic_res)
+```
+
+
+
+## Minimum Wage Application
+
+```{r}
+#| echo: false
+#| cache: true
+#| fig.align: "center"
+#| fig.width: 4.5
+#| fig.height: 3
+#| message: false
+#| warning: false
+# change-in-changes
+data2$G2 <- data2$G
+cic_res <- qte::cic2(yname="lemp",
+                     gname="G2",
+                     tname="year",
+                     idname="id",
+                     data=data2,
+                     boot_type="empirical",
+                     cl=4,
+                     biters=100)
+ggpte(cic_res) + geom_hline(yintercept=0, size=1.2)
+```
+
+## Minimum Wage Application
+
+```{r}
+#| echo: false
+summary(cic_res)
+```
+
+## Minmium Wage Application
+
+```{r}
+#| echo: false
+#| cache: true
+#| fig.align: "center"
+#| fig.width: 4.5
+#| fig.height: 3
+#| message: false
+#| warning: false
+plot_df <- cic_res$attgt_results
+plot_df$post <- as.factor(1*(plot_df$time.period >= plot_df$group))
+ggplot(plot_df, aes(x=time.period, y=att, color=post)) +
+  geom_point() + geom_line() + theme_bw() +
+  geom_errorbar(aes(ymin=att - 1.96*se, ymax=att + 1.96*se), width=0.1) +
+  facet_wrap(~group, ncol=1)
+  labs(title="Change-in-Changes", x="Year", y="ATT(g,t)") +
+  geom_hline(yintercept=0, size=1.2) +
+  theme(legend.position="none")
+```
+
+
+## Side-Discussion: Quantile Treatment Effects
+
+So far, our discussion has focused on [average treatment effect paramters]{.alert}
+
+. . .
+
+In some applications, it may be useful to target [quantile treatment effect parameters]{.alert}
+
+* Examples of quantiles: median, 10th percentile, 90th percentile
+
+* These can be useful for studying how treatments affect different parts of the outcome distribution
+    * For example, in labor, we might be particularly interested in how some policy affects the lower part of the income distribution
+    * Most social welfare calculations depend on the entire distribution of outcomes $\implies$ quantile treatment effects can be used to rank policies (@sen-1997,@carneiro-hansen-heckman-2003)
+
+## Side-Discussion: Quantile Treatment Effects
+
+Recovering quantile treatment effects using DiD-type identification arguments is not straightforward though:
+
+$$Y_{it}(0) = \theta_t + \eta_i + e_{it}$$
+
+. . .
+
+Our arguments have involved taking expectations and difference---these "play nicely" together:
+
+$$\E[Y_t(0) | D=1] = \E[\Delta Y_{t}(0) | D=1] - \E[Y_{t-1}(0) | D=1]$$
+
+. . .
+
+However, for quantiles, this decomposition doesn't generally work
+
+$$Q_{Y_t(0)|D=1}(\tau) \neq Q_{\Delta Y_{t}(0)|D=1}(\tau) - Q_{Y_{t-1}(0)|D=1}(\tau)$$
+
+## Side-Discussion: Quantile Treatment Effects
+
+But you can recover $QTT$ using change-in-changes.  In particular,
+
+$$ QTT(g,t)(\tau) = Q_{Y_t|G=g}(\tau) - Q_{Y_{t}(0)|U=1}\Big(F_{Y_{g-1}(0)|U=1}\big(Q_{Y_{g-1}(0)|G=g}(\tau)\big)\Big) $$
+
+And (being careful), you can aggregate this to recover, e.g., a quantile-version of an event study.
+
+## Minimum Wage Application
+
+```{r}
+#| eval: false
+#| code-line-numbers: "|1,2|10,11"
+cic_qte10 <- qte::cic2(
+  yname = "emp_rate",
+  gname = "G2",
+  tname = "year",
+  idname = "id",
+  data = data2,
+  boot_type = "empirical",
+  cl = 4,
+  biters = 100,
+  gt_type = "qtt",
+  ret_quantile = 0.1
+)
+ggpte(cic_qte10)
+```
+
+## Minimum Wage Application
+
+$\tau = 0.1$
+
+```{r}
+#| cache: true
+#| echo: false
+data2$emp_rate <- exp(data2$lemp)/data2$pop
+cic_qte10 <- qte::cic2(
+  yname = "emp_rate",
+  gname = "G2",
+  tname = "year",
+  idname = "id",
+  data = data2,
+  boot_type = "empirical",
+  cl = 4,
+  biters = 100,
+  gt_type = "qtt",
+  ret_quantile = 0.1
+)
+ggpte(cic_qte10) +
+  scale_y_continuous(labels = function(x) format(x, scientific = FALSE, nsmall = 5)) +
+  geom_hline(yintercept=0, size=1.2)
+```
+
+## Minimum Wage Application
+
+$\tau = 0.5$
+
+```{r}
+#| cache: true
+#| echo: false
+cic_qte50 <- qte::cic2(
+  yname = "emp_rate",
+  gname = "G2",
+  tname = "year",
+  idname = "id",
+  data = data2,
+  boot_type = "empirical",
+  cl = 4,
+  biters = 100,
+  gt_type = "qtt",
+  ret_quantile = 0.5
+)
+ggpte(cic_qte50) +
+  scale_y_continuous(labels = function(x) format(x, scientific = FALSE, nsmall = 5)) +
+  geom_hline(yintercept=0, size=1.2)
+```
+
+
+## Minimum Wage Application
+
+$\tau = 0.9$
+
+```{r}
+#| cache: true
+#| echo: false
+cic_qte90 <- qte::cic2(
+  yname = "emp_rate",
+  gname = "G2",
+  tname = "year",
+  idname = "id",
+  data = data2,
+  boot_type = "empirical",
+  cl = 4,
+  biters = 100,
+  gt_type = "qtt",
+  ret_quantile = 0.9
+)
+ggpte(cic_qte90) +
+  scale_y_continuous(labels = function(x) format(x, scientific = FALSE, nsmall = 5)) +
+  geom_hline(yintercept=0, size=1.2)
+```
+
+# Interactive Fixed Effects {visibility="uncounted"}
+
+## Interactive Fixed Effects
+
+Earlier we discussed that the model that rationalizes parallel trends
+
+$$Y_{it}(0) = \theta_t + \eta_i + e_{it}$$
+
+may be too restrictive.  It may not be possible to fully generalize this model (in the sense of $Y_{it}(0) = h_t(\eta_i) + e_{it}$), but we can still perhaps relax it to some extent.
+
+. . .
+
+An intermediate case is an interactive fixed effects model for untreated potential outcomes:
+\begin{align*}
+  Y_{it}(0) = \theta_t + \eta_i + \lambda_i F_t + e_{it}
+\end{align*}
+
+* $\lambda_i$ is often referred to as "factor loading" (notation above implies that this is a scalar, but you can allow for higher dimension)
+
+* $F_t$ is often referred to as a "factor"
+
+* $e_{it}$ is idioyncratic in the sense that $\E[e_{t} | G=g] = 0$ for all groups
+
+. . .
+
+In our context, though, it makes sense to interpret these as
+
+* $\lambda_i$ unobserved heterogeneity (e.g., individual's unobserved skill)
+
+* $F_t$ the time-varying "return" unobserved heterogeneity (e.g., return to skill)
+
+
+
+## Interactive Fixed Effects
+
+Interactive fixed effects models for untreated potential outcomes generalize some other important cases:
+
+. . .
+
+<span class="alert">Example 1: </span> Suppose we observe $\lambda_i$, then this amounts to the regression adjustment version of DID with a time-invariant covariate considered earlier
+
+. . .
+
+<span class="alert">Example 2: </span> Suppose you know that $F_t = t$, then this leads to a *unit-specific linear trend model*:
+\begin{align*}
+  Y_{it}(0) = \theta_t + \eta_i + \lambda_i t + e_{it}
+\end{align*}
+
+. . .
+
+To allow for $F_t$ to change arbitrarily over time is harder...
+
+. . .
+
+
+<span class="alert">Example 3: </span> Interactive fixed effects models also provide a connection to "large-T" approaches such as synthetic control and synthetic DID (@abadie-diamond-hainmueller-2010, @arkhangelsky-etal-2021)
+
+* e.g., one of the motivations of the SCM in ADH-2010 is that (given large-T) constructing a synthetic control can balance the factor loadings in an interactive fixed effects model for untreated potential outcomes
+
+
+
+## Interactive Fixed Effects
+
+Interactive fixed effects models allow for violations of parallel trends:
+
+\begin{align*}
+  \E[\Delta Y_{t}(0) | G=g] = \Delta \theta_t + \E[\lambda|G=g]\Delta F_t
+\end{align*}
+which can vary across groups.
+
+Example: If $\lambda_i$ is "ability" and $F_t$ is increasing over time, then (even in the absence of the treatment) groups with higher mean "ability" will tend to increase outcomes more over time than less skilled groups
+
+
+
+## How can you recover $ATT(g,t)$ here?
+
+There are a lot of ideas.  Probably the most prominent idea is to directly estimate the model for untreated potential outcomes and impute
+
+* See @xu-2017, @gobillon-magnac-2016, and @hsiao-zhou-2019 for substantial detail on this front
+
+* For example, @xu-2017 uses @bai-2009 principal components approach to estimate the model.  This is a bit different in spirit from what we have been doing before as this argument requires the number of time periods to be "large"
+
+
+
+## Alternative Approaches with Fixed-T
+
+<span class="alert">Very Simple Case:</span>
+
+* $T=4$
+
+* 3 groups: 3, 4, $\infty$
+
+* We will target $ATT(3,3) = \E[\Delta Y_3 | G=3] - \underbrace{\E[\Delta Y_3(0) | G=3]}_{\textrm{have to figure out}}$
+
+. . .
+
+In this case, given the IFE model for untreated potential outcomes, we have:
+\begin{align*}
+  \Delta Y_{i3}(0) &= \Delta \theta_3 + \lambda_i \Delta F_3 + \Delta e_{i3} \\
+  \Delta Y_{i2}(0) &= \Delta \theta_2 + \lambda_i \Delta F_3 + \Delta e_{i2} \\
+\end{align*}
+
+. . .
+
+The last equation implies that
+\begin{align*}
+  \lambda_i = \Delta F_2^{-1}\Big( \Delta Y_{i2}(0) - \Delta \theta_2 - \Delta e_{i2} \Big)
+\end{align*}
+Plugging this back into the first equation (and combining terms), we have $\rightarrow$
+
+
+
+## Alternative Approaches with Fixed-T
+
+From last slide, combining terms we have that
+
+\begin{align*}
+  \Delta Y_{i3}(0) = \underbrace{\Big(\Delta \theta_3 - \frac{\Delta F_3}{\Delta F_2} \Delta \theta_2 \Big)}_{=: \theta_3^*} + \underbrace{\frac{\Delta F_3}{\Delta F_2}}_{=: F_3^*} \Delta Y_{i2}(0) + \underbrace{\Delta e_{i3} - \frac{\Delta F_3}{\Delta F_2} \Delta e_{i2}}_{=: v_{i3}}
+\end{align*}
+
+. . .
+
+Now (momentarily) suppose that we (somehow) know $\theta_3^*$ and $F_3^*$.  Then,
+
+\begin{align*}
+  \E[\Delta Y_3(0) | G=3] = \theta_3^* + F_3^* \underbrace{\E[\Delta Y_2(0) | G = 3]}_{\textrm{identified}} + \underbrace{\E[v_3|G=3]}_{=0}
+\end{align*}
+
+$\implies$ this term is identified; hence, we can recover $ATT(3,3)$.
+
+
+
+## Alternative Approaches with Fixed-T
+
+From last slide, combining terms we have that
+
+\begin{align*}
+  \Delta Y_{i3}(0) = \underbrace{\Big(\Delta \theta_3 - \frac{\Delta F_3}{\Delta F_2} \Delta \theta_2 \Big)}_{=: \theta_3^*} + \underbrace{\frac{\Delta F_3}{\Delta F_2}}_{=: F_3^*} \Delta Y_{i2}(0) + \underbrace{\Delta e_{i3} - \frac{\Delta F_3}{\Delta F_2} \Delta e_{i2}}_{=: v_{i3}}
+\end{align*}
+
+<span class="alert">How can we recover $\theta_3^*$ and $F_3^*$?</span>
+
+. . .
+
+Notice: this involves untreated potential outcomes through period 3, and we have groups 4 and $\infty$ for which we observe these untreated potential outcomes.  This suggests using those groups.
+
+* However, this is not so simple because, by construction, $\Delta Y_{i2}(0)$ is correlated with $v_{i3}$ (note: $v_{i3}$ contains $\Delta e_{i2} \implies$ they will be correlated by construction)
+
+* We need some exogenous variation (IV) to recover the parameters $\rightarrow$
+
+
+
+## Alternative Approaches with Fixed-T
+
+There are a number of different ideas here:
+
+. . .
+
+* Make additional assumptions ruling out serial correlation in $e_{it}$ $\implies$ can use lags of outcomes as instruments (@imbens-kallus-mao-2021):
+
+    * But this is seen as a strong assumption in many applications (@bertrand-duflo-mullainathan-2004)
+
+. . .
+
+* Alternatively can introduce covariates and make auxiliary assumptions about them (@callaway-karami-2023, @brown-butts-2023, @brown-butts-westerlund-2023)
+
+. . .
+
+* However, it turns out that, with staggered treatment adoption, you can recover $ATT(3,3)$ essentially for free (@callaway-tsyawo-2023).
+
+
+
+## Alternative Approaches with Fixed-T
+
+In particular, notice that, given that we have two distinct untreated groups in period 3: group 4 and group $\infty$, then we have two moment conditions:
+
+\begin{align*}
+  \E[\Delta Y_3(0) | G=4] &= \theta_3^* + F_3^* \E[\Delta Y_2(0) | G=4] \\
+  \E[\Delta Y_3(0) | G=\infty] &= \theta_3^* + F_3^* \E[\Delta Y_2(0) | G=\infty] \\
+\end{align*}
+We can solve these for $\theta_3^*$ and $F_3^*$, then use these to recover $ATT(3,3)$.
+
+. . .
+
+* The main requirement is that $\E[\lambda | G=4] \neq \E[\lambda|G=\infty]$ (relevance condition)
+
+* Can scale this argument up for more periods, groups, and IFEs
+
+* Relative to other approaches, the main drawback is that can't recover as many $ATT(g,t)$'s; e.g., in this example, we can't recover $ATT(3,4)$ or $ATT(4,4)$ which might be recoverable in other settings
+
+
+
+## Minimum Wage Application
+
+For interactive fixed effects, need more periods groups
+
+* Add years back to 1998
+
+* Add 2002 group
+
+* Expanded data and code for this is on website
+
+
+```{r}
+#| echo: false
+
+load("mw_data_ch_more_years2.RData")
+data3 <- data
+
+data3 <- subset(data3, G != 1999) # drop early and already treated groups
+data3 <- subset(data3, G != 1998)
+data3 <- subset(data3, G != 2000)
+data3$cohort <- data3$G
+```
+
+## Minimum Wage Application
+
+Start with @callaway-santanna-2021
+
+* All groups relative to never-treated group
+
+## Minimum Wage Application
+
+```{r}
+#| echo: false
+#| fig.align: "center"
+#| fig.width: 4
+#| fig.height: 6
+cs_res <- att_gt(
+  yname = "lemp",
+  gname = "G",
+  tname = "year",
+  idname = "countyreal",
+  data = data3,
+  anticipation = 0,
+  control_group = "nevertreated"
+)
+# ggdid(cs_res, ylim = c(-.2, .25))
+```
+
+<center><img src="did-attgt.png" width=60%></center>
+
+## Minimum Wage Application
+
+Event Study
+
+```{r}
+#| echo: false
+dyn_res <- aggte(cs_res, type = "dynamic")
+ggdid(dyn_res)
+```
+
+
+
+## Minimum Wage Application
+
+```{r}
+#| eval: false
+#| code-line-numbers: "1|9,10"
+library(ife)
+set.seed(09192024)
+ife1 <- staggered_ife2(
+  yname = "lemp",
+  gname = "cohort",
+  tname = "year",
+  idname = "id",
+  data = data3,
+  nife = 1,
+  weighting_matrix = "2sls",
+  cband = FALSE,
+  boot_type = "empirical",
+  biters = 100,
+  cl = 10,
+  anticipation = 0
+)
+```
+
+## Minimum Wage Application
+
+<center><img src="ife-attgt.png" width=60%></center>
+
+
+## Summary
+
+This section has emphasized alternative approaches to DID to recover disaggregated treatment effect parameters:
+
+* Lagged outcome unconfoundedness
+
+* Change-in-changes
+
+* Interactive fixed effects models
+
+We have targeted $ATT(g,t)$.  Moving to more aggregated treatment effect parameters such as $ATT^{es}(e)$ or $ATT^o$ is the same as before.
+
+
+
+## Summary
+
+I want to emphasize the high-level thought process one last time for using/inventing heterogeneity robust causal inference procedures with panel data: <!--some off-script application:-->
+
+* Step 1: target disaggregated parameters directly using whatever approach you think would work well for recovering the $ATT$ for a fixed "group" and "time"
+
+* Step 2: if desired, combine those disaggregated parameters into lower dimensional parameter that you may be able to estimate better and report more easily; hopefully, you can provide some motivation for this aggregated parameter
+
+
+## Conclusion
+
+<span class="highlight">Thank you</span> very much for having me!
+
+<br>
+
+<span class="alert">Contact Information: </span>brantly.callaway@uga.edu
+
+<span class="alert">Code and Slides: </span> [Available here](https://github.com/bcallaway11/bank-of-portugal)
+
+
+<span class="alert">Papers:</span>
+
+* @callaway-2023, *Handbook of Labor, Human Resources and Population Economics*), [[published version](https://link.springer.com/referenceworkentry/10.1007/978-3-319-57365-6_352-1)] &nbsp; [[draft version](https://bcallaway11.github.io/files/Callaway-Chapter-2022/main.pdf)]; the draft version is ungated and very similar to the published version.
+
+* Today is also based on the not-yet-made-publicly available manuscript Baker, Callaway, Cunningham, Goodman-Bacon, and Sant'Anna (be on the lookout for it very soon)
+
+
+# Appendix {visibility="uncounted"}
+
+## LOU Identification Explanation {#lou-identification-explanation visibility="uncounted"}
+
+Simplest possible non-trivial example: $ATT(g=2,t=3)$.
+
+Auxiliary condition: for any group $g$, $\E[Y_{t}(0) | Y_{t-1}(0), \ldots, Y_1(0), G=g] = \E[Y_{t}(0) | Y_{it-1}(0), G=g]$ (intuition: the right number of lags are included in the model).  Then,
+
+\begin{align*}
+  \E[Y_3(0) | Y_1(0), G=2] &= \E\Big[ \E[Y_3(0) | Y_2(0), Y_1(0), G=2] \Big| Y_1(0), G=2 \Big] \\
+  &= \E\Big[ \E[Y_3(0) | Y_2(0), G=2] \Big| Y_1(0), G=2 \Big] \\
+  &= \E\Big[ \E[Y_3(0) | Y_2(0), U=1] \Big| Y_1(0), G=2 \Big] \\
+  &= \E\Big[ h(Y_2) \Big| Y_1(0), G=2 \Big] \\
+  &= \E\Big[ h(Y_2) \Big| Y_1(0), U=1 \Big] \\
+  &= \E\Big[ \E[Y_3(0) | Y_2(0), U=1] \Big| Y_1(0), U=1 \Big] \\
+  &= \E\Big[ \E[Y_3(0) | Y_2(0), Y_1(0), U=1] \Big| Y_1(0), U=1 \Big] \\
+  &= \E[Y_3(0) | Y_1(0), U=1]
+\end{align*}
+
+## LOU Identification Explanation (cont'd) {visibility="uncounted"}
+
+Thus, we have that
+\begin{align*}
+  ATT(g=2,t=3) &= \E[Y_3|G=2] - \E[Y_3(0) | G=2] \\
+  &= \E[Y_3|G=2] - \E[Y_3(0) | G=2] \\
+  &= \E[Y_3|G=2] - \E\Big[ \E[Y_3(0) | Y_1(0), G=2] \Big| G=2\Big] \\
+  &= \E[Y_3|G=2] - \E\Big[ \E[Y_3(0) | Y_1(0), U=1] \Big| G=2\Big]
+\end{align*}
+done.
+
+[[Back](#lou-identification-of-attgt)]
+
+# References {visibility="uncounted"}
+
+::: {#refs}
+:::

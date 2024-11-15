@@ -1,0 +1,952 @@
+---
+title: "Modern Approaches to Difference-in-Differences"
+subtitle: "Session 3: Common Extensions for Empirical Work"
+format: clean-revealjs
+author:
+  - name: Brantly Callaway
+    email: brantly.callaway@uga.edu
+    affiliations: University of Georgia
+knitr:
+  opts_chunk:
+    echo: true
+bibliography:
+  - refs.bib
+  - labor_refs.bib
+---
+
+```{r}
+#| echo: false
+library(revealEquations)
+```
+
+```{r}
+#| echo: false
+library(did)
+library(BMisc)
+library(twfeweights)
+library(fixest)
+library(modelsummary)
+library(ggplot2)
+load("data2.RData")
+data2$region <- droplevels(data2$region)
+```
+
+## Outline
+
+1. Introduction to Difference-in-Differences
+
+2. Including Covariates in the Parallel Trends Assumption
+
+3. [Common Extensions for Empirical Work]{.alert}
+
+4. Dealing with More Complicated Treatment Regimes
+
+5. Alternative Identification Strategies
+
+$\newcommand{\E}{\mathbb{E}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\var}{\mathrm{var}}
+\newcommand{\cov}{\mathrm{cov}}
+\newcommand{\Var}{\mathrm{var}}
+\newcommand{\Cov}{\mathrm{cov}}
+\newcommand{\Corr}{\mathrm{corr}}
+\newcommand{\corr}{\mathrm{corr}}
+\newcommand{\L}{\mathrm{L}}
+\renewcommand{\P}{\mathrm{P}}
+\newcommand{\independent}{{\perp\!\!\!\perp}}
+\newcommand{\indicator}[1]{ \mathbf{1}\{#1\} }$
+
+
+## Plan: Common Extensions for Empirical Work
+
+<br>
+
+1. Repeated Cross Sections
+
+2. Unbalanced Panel Data
+
+3. Alternative Comparison Groups
+
+4. Anticipation
+
+5. Alternative Base Periods
+
+6. Dealing with Violations of Parallel Trends
+
+8. Sampling Weights
+
+9. Inference / Clustered Standard Errors
+
+# Repeated Cross Sections {visibility="uncounted"}
+
+```{r}
+#| echo: false
+#| results: "asis"
+
+title <- "Repeated Cross Sections Data"
+
+before <- "DiD often works just fine with repeated cross sections data."
+
+eqlist <- list("ATT &= \\E[Y_{t=2}-Y_{t=1} | G=1] - \\E[Y_{t=2}-Y_{t=1} | G=0] \\hspace{150pt}",
+               "&= \\Big( \\E[Y_{t=2} | G=1] - \\E[Y_{t=1} | G=1] \\Big) - \\Big(\\E[Y_{t=2} | G=0] - \\E[Y_{t=1} | G=0]\\Big)")
+
+after <- "which you can compute with repeated cross sections data
+
+. . .
+
+[Additional Discussion:]{.alert}
+
+* Operationalizing this argument requires that you observe treatment status in both periods
+    * Often plausible if the treatment occurs at an aggregate level (e.g., state)
+    * May not be plausible with individual-level data (e.g., job displacement)
+
+* Related references: @abadie-2005, @botosaru-gutierrez-2018, @callaway-santanna-2021, @santanna-xu-2023
+
+"
+
+step_by_step_eq(eqlist, before, after, title)
+```
+
+## "Repeated Cross Sections" in Min. Wage Ex.
+
+```{r}
+#| eval: false
+#| code-line-numbers: "|7"
+attgt_rc <- did::att_gt(yname="lemp",
+                     gname="G",
+                     tname="year",
+                     data=data2,
+                     control_group="nevertreated",
+                     base_period="universal",
+                     panel=FALSE)
+ggdid(aggte(attgt_rc, type="dynamic"))
+```
+
+## "Repeated Cross Sections" in Min. Wage Ex.
+
+```{r}
+#| echo: false
+#| code-line-numbers: "|7"
+attgt_rc <- did::att_gt(yname="lemp",
+                     gname="G",
+                     tname="year",
+                     data=data2,
+                     control_group="nevertreated",
+                     base_period="universal",
+                     panel=FALSE)
+ggdid(aggte(attgt_rc, type="dynamic"))
+```
+
+# Unbalanced Panel Data
+
+## Unbalanced Panel Data
+
+Issues with unbalanced panel data seem to be very similar to typical panel data methods
+
+* If not observing a unit in a particular time period (e.g., attrition) is "at random", then everything should be fine
+
+* If missing data is not a random, then this can be a major issue
+
+. . .
+
+[Additional Discussion:]{.alert}
+
+* There a few different definitions of what "missing at random" means
+    * The strongest version is that $\E[Y_t|G=g,S_t=1] = \E[Y_t|G=g]$ for all $t$ and $g$
+    * A weaker version is that $\E[Y_{t=2}(1) - Y_{t=2}(0) | G=1, S_{t=1}=S_{t=2}=1] = ATT$ and that $\E[\Delta Y(0) | G=0, S_{t=1}=S_{t=2}=1] = \E[\Delta Y(0) | G=0]$ ... weaker assumption but drops more observations
+    * Can do intermdiate versions of these with staggered treatment adoption
+
+* Related references: @bellego-benatia-dortet-2024
+
+## "Unbalanced Panel Data" in Min. Wage Ex.
+
+```{r}
+#| eval: false
+#| code-line-numbers: "|2|3|8|12"
+set.seed(123)
+# randomly drop 100 observations
+this_data <- data2[sample(1:nrow(data2), nrow(data2)-100),]
+attgt_up <- did::att_gt(yname="lemp",
+                        idname="id",
+                        gname="G",
+                        tname="year",
+                        data=this_data,
+                        control_group="nevertreated",
+                        base_period="universal",
+                        panel=TRUE,
+                        allow_unbalanced_panel=TRUE)
+ggdid(aggte(attgt_up, type="dynamic"))
+```
+
+
+## "Unbalanced Panel Data" in Min. Wage Ex.
+
+```{r}
+#| echo: false
+#| code-line-numbers: "|1,2,3|8,12,13"
+set.seed(123)
+# randomly drop 100 observations
+this_data <- data2[sample(1:nrow(data2), nrow(data2)-100),]
+attgt_up <- did::att_gt(yname="lemp",
+                        idname="id",
+                        gname="G",
+                        tname="year",
+                        data=this_data,
+                        control_group="nevertreated",
+                        base_period="universal",
+                        panel=TRUE,
+                        allow_unbalanced_panel=TRUE)
+ggdid(aggte(attgt_up, type="dynamic"))
+```
+
+## "Unbalanced Panel Data" in Min. Wage Ex.
+
+```{r}
+#| eval: false
+#| code-line-numbers: "|8,9"
+attgt_upd <- did::att_gt(yname="lemp",
+                         idname="id",
+                         gname="G",
+                         tname="year",
+                         data=this_data,
+                         control_group="nevertreated",
+                         base_period="universal",
+                         panel=TRUE,
+                         allow_unbalanced_panel=FALSE)
+ggdid(aggte(attgt_upd, type="dynamic"))
+```
+
+
+## "Unbalanced Panel Data" in Min. Wage Ex.
+
+```{r}
+#| echo: false
+#| code-line-numbers: "|8,9"
+attgt_upd <- did::att_gt(yname="lemp",
+                         idname="id",
+                         gname="G",
+                         tname="year",
+                         data=this_data,
+                         control_group="nevertreated",
+                         base_period="universal",
+                         panel=TRUE,
+                         allow_unbalanced_panel=FALSE)
+ggdid(aggte(attgt_upd, type="dynamic"))
+```
+
+
+# Alternative Comparison Groups
+
+## Alternative Comparison Groups
+
+So far, we have used the [never-treated group]{.alert} as the comparison group.  But there are other possibilities:
+
+. . .
+
+1. [Not-yet-treated group]{.alert} - add not-yet-treated units (by period $t$) to never-treated units to form the comparison group.
+    * This is a larger comparison group than never-treated (probably a good default option)
+
+. . .
+
+2. [Not-yet-but-eventually-treated group]{.alert} - drop units that are never-treated from \#1 above.
+    * Might be attractive in applications where eventually treated units are somehow "more similar" to treated units than never-treated units
+    * Will not be able to recover treatment effects in the last period
+
+. . .
+
+3. If you want to get more inventive, you can check my `pte` package which allows for selecting the comparison group in fully customizable ways
+
+## Min. Wage with Not-Yet-Treated Comp. Group
+
+```{r}
+#| eval: false
+#| code-line-numbers: "|6"
+attgt_nyt <- did::att_gt(yname="lemp",
+                         idname="id",
+                         gname="G",
+                         tname="year",
+                         data=data2,
+                         control_group="notyettreated",
+                         base_period="universal")
+ggdid(aggte(attgt_nyt, type="dynamic"))
+```
+
+## Min. Wage with Not-Yet-Treated Comp. Group
+
+```{r}
+#| echo: false
+#| code-line-numbers: "|6"
+attgt_nyt <- did::att_gt(yname="lemp",
+                         idname="id",
+                         gname="G",
+                         tname="year",
+                         data=data2,
+                         control_group="notyettreated",
+                         base_period="universal")
+ggdid(aggte(attgt_nyt, type="dynamic"))
+```
+
+## Min. Wage with Not-Yet-But-Eventually-Treated Comp. Group
+
+```{r}
+#| eval: false
+#| code-line-numbers: "|1,2,3|4,5,6,7|13"
+# have to do a little hack to get this to work
+# drop never-treated group
+this_data <- subset(data2, G != 0)
+# note: this causes us to lose the 2006 group
+# as it no longer has a valid comparison group
+# and we lose some periods for the 2004 group
+# because it only has a valide comparison group up to 2005
+attgt_nye <- did::att_gt(yname="lemp",
+                         idname="id",
+                         gname="G",
+                         tname="year",
+                         data=this_data,
+                         control_group="notyettreated",
+                         base_period="universal")
+ggdid(aggte(attgt_nye, type="dynamic"))
+```
+
+
+## Min. Wage with Not-Yet-But-Eventually-Treated Comp. Group
+
+```{r}
+#| echo: false
+#| code-line-numbers: "|1,2,3|4,5,6,7|13"
+# have to do a little hack to get this to work
+# drop never-treated group
+this_data <- subset(data2, G != 0)
+# note: this causes us to lose the 2006 group
+# as it no longer has a valid comparison group
+# and we lose some periods for the 2004 group
+# because it only has a valide comparison group up to 2005
+attgt_nye <- did::att_gt(yname="lemp",
+                         idname="id",
+                         gname="G",
+                         tname="year",
+                         data=this_data,
+                         control_group="notyettreated",
+                         base_period="universal")
+ggdid(aggte(attgt_nye, type="dynamic"))
+```
+
+# Anticipation
+
+## Anticipation
+
+Anticipation occurs when treatments start affecting outcomes in periods before the treatment actually occurs.  Examples:
+
+* Policies that are announced before they are implemented
+
+* Ashenfelter's dip---for applications like job training, often people participate because they experience a shock to their labor market prospects
+    * This can cause us to overestimate the treatment effect if the effects of the shock quickly dissipate (so outcomes would have recovered even without the treatment)
+
+. . .
+
+[Dealing with Anticipation:]{.alert}
+
+* Usually easy to deal with, as long as there is only "limited anticipation"
+
+* In particular, could assume that $Y_{it} = Y_{it}(0)$ for $t < G_i - a$, then the new base period is $g-(a+1)$ for group $g$, and
+    $$ATT(g,t) = \E[Y_t - Y_{g-(a+1)} | G=g] - \E[Y_t - Y_{g-(a+1)} | G=0]$$
+
+## Min. Wage with Anticipation
+
+```{r}
+#| eval: false
+#| code-line-numbers: "|1,2|10"
+# note: this causes us to lose the 2004 group due
+# to not enough pre-treatment periods
+attgt_ant <- did::att_gt(yname="lemp",
+                         idname="id",
+                         gname="G",
+                         tname="year",
+                         data=data2,
+                         control_group="nevertreated",
+                         base_period="universal",
+                         anticipation=1)
+ggdid(aggte(attgt_ant, type="dynamic"))
+```
+
+
+## Min. Wage with Anticipation
+
+```{r}
+#| echo: false
+#| code-line-numbers: "|1,2|10"
+# note: this causes us to lose the 2004 group due
+# to not enough pre-treatment periods
+attgt_ant <- did::att_gt(yname="lemp",
+                         idname="id",
+                         gname="G",
+                         tname="year",
+                         data=data2,
+                         control_group="nevertreated",
+                         base_period="universal",
+                         anticipation=1)
+ggdid(aggte(attgt_ant, type="dynamic"))
+```
+
+
+# Alternative Base Periods {visibility="uncounted"}
+
+## Alternative Base Periods (in Pre-Treatment Periods)
+
+In all the results above, we have used a [universal]{.alert} base period.
+
+* This means that all differences (including pre-treatment periods) are relative to period $(g-1)$
+
+* (In my view) this is a legacy of implementing DID in a regression framework, where it is not clear if it is possible to make a different choice
+
+. . .
+
+The main alternative is a [varying]{.alert} base period.
+
+* No difference in post-treatment periods
+
+* In pre-treatment periods, we compare period $t$ to $t-1$ for all $t < g$
+  * This means that these pre-treatment estimates can "pseudo on impact" ATTs
+
+. . .
+
+In either case, the information from pre-treatment periods is the same
+
+* Statistical tests of parallel trends in pre-treatment periods will give the same results
+
+* However, they can quite visually different in an event study plot
+
+## Alternative Base Periods
+
+Choosing between different base periods comes down to the type of information that you would like the event study to highlight
+
+[The case for a universal base period:]{.alert}
+
+* Good option if you are mainly interested in highlighting long-run trend differences between groups
+* Also, heuristically, this can be better in cases where you have more periods
+
+[The case for a varying base period:]{.alert}
+
+* Good for highlighting anticipation
+* Good in cases where differences between groups "bounce around"
+* Pre-treatment estimates are easier to interpret
+<!--* Heuristically, a good option with fewer periods-->
+
+## Min. Wage with Universal Base Period
+
+```{r}
+#| eval: false
+#| code-line-numbers: "|7"
+attgt_uni <- did::att_gt(yname="lemp",
+                         idname="id",
+                         gname="G",
+                         tname="year",
+                         data=data2,
+                         control_group="nevertreated",
+                         base_period="universal")
+ggdid(aggte(attgt_uni, type="dynamic"))
+```
+
+## Min. Wage with Universal Base Period
+
+```{r}
+#| echo: false
+#| code-line-numbers: "|7"
+attgt_uni <- did::att_gt(yname="lemp",
+                         idname="id",
+                         gname="G",
+                         tname="year",
+                         data=data2,
+                         control_group="nevertreated",
+                         base_period="universal")
+ggdid(aggte(attgt_uni, type="dynamic"))
+```
+
+## Min. Wage with Varying Base Period
+
+```{r}
+#| eval: false
+#| code-line-numbers: "|7"
+attgt_var <- did::att_gt(yname="lemp",
+                         idname="id",
+                         gname="G",
+                         tname="year",
+                         data=data2,
+                         control_group="nevertreated",
+                         base_period="varying")
+ggdid(aggte(attgt_var, type="dynamic"))
+```
+
+## Min. Wage with Varying Base Period
+
+```{r}
+#| echo: false
+#| code-line-numbers: "|7"
+attgt_var <- did::att_gt(yname="lemp",
+                         idname="id",
+                         gname="G",
+                         tname="year",
+                         data=data2,
+                         control_group="nevertreated",
+                         base_period="varying")
+ggdid(aggte(attgt_var, type="dynamic"))
+```
+
+## Pre-Test of Parallel Trends with Universal Base Period
+
+```{r}
+summary(attgt_uni)
+```
+
+## Pre-Test of Parallel Trends with Varying Base Period
+
+```{r}
+summary(attgt_var)
+```
+
+## Discussion
+
+To me, it looks like the universal base period would be a better choice in our application
+
+* It does not look like there are anticipation effects.
+
+* It does look like there are trend differences between the treated and untreated units.
+
+# Dealing with Violations of Parallel Trends {visibility="uncounted"}
+
+## What about violations of parallel trends?
+
+Parallel trends assumptions don't automatically hold in applications with repeated observations over time
+
+* The most common "response" is pre-testing...checking if parallel trends holds in pre-treatment periods
+
+DID + pre-tests are a very powerful/useful approach to "validating" the parallel trends assumption.  But they are less than a full test of parallel trends.
+
+* Just because parallel trends holds in pre-treatment periods doesn't mean it holds in post-treatment periods
+
+* Pre-tests can suffer from low power (@roth-2022)
+
+## What about our case?
+
+```{r}
+#| echo: false
+attgt <- did::att_gt(yname="lemp",
+                     idname="id",
+                     gname="G",
+                     tname="year",
+                     data=data2,
+                     control_group="nevertreated",
+                     base_period="universal")
+```
+
+```{r echo=FALSE}
+ggdid(aggte(attgt,type="dynamic",cband=FALSE))
+```
+
+---
+
+
+
+## Partial Identification / Sensitivity Analysis
+
+References: @manski-pepper-2018, @rambachan-roth-2023, @ban-kedagni-2022
+
+Two versions of sensitivity analysis in RR:
+
+1. Violations of parallel trends are "not too different" in post-treatment periods from the violations in pre-treatment periods
+    * Allow for violations of parallel trends up to $\bar{M}$ times as large as were observed in any pre-treatment period.
+    * And we'll vary $\bar{M}$.
+
+2. Violations of parallel trends evolve smoothly
+    * Allow for linear trend up to $M$ times as large as linear trend difference in pre-treatment periods.
+    * We'll vary $M$
+
+Next slides: show these results in minimum wage application for the "on impact" effect of the treatment
+
+## What about violations of parallel trends?
+
+```{r, echo=FALSE, cache=TRUE, fig.align="center", fig.width=14, fig.height=8, message=FALSE, warning=FALSE}
+# devtools::install_github("asheshrambachan/HonestDiD")
+library(HonestDiD)
+source("honest_did.R")
+cs_es <- aggte(attgt, type="dynamic")
+hd_cs <- honest_did(es=cs_es,
+                    e=0,
+                    type="relative_magnitude")
+createSensitivityPlot_relativeMagnitudes(hd_cs$robust_ci,
+                                         hd_cs$orig_ci)
+```
+
+## What about violations of parallel trends?
+
+```{r, echo=FALSE, cache=TRUE, fig.align="center", fig.width=14, fig.height=8, message=FALSE, warning=FALSE}
+hd_cs <- honest_did(es=cs_es,
+                    e=0,
+                    type="smoothness")
+createSensitivityPlot(hd_cs$robust_ci,
+                      hd_cs$orig_ci)
+```
+
+# Sampling Weights {visibility="uncounted"}
+
+## Sampling Weights
+
+Sampling weights are common in DID applications
+
+* Can come from survey design (e.g., oversampling certain subpoopulations)
+
+* Can also arise from working with aggregated data (e.g., counties) where we might want to count larger counties more than smaller counties
+
+. . .
+
+The most well-known paper (well...to me) on sampling weights is @solon-haider-wooldridge-2015
+
+* Ambivalent about whether to use sampling weights in causal analysis
+    * But this is for the case where the regression in under-specified (similar to TWFE earlier)
+    * This argument does not seem to apply in the settings we have considered
+
+* They do recommend using sampling weights for descriptive analysis (i.e., estimating population means)
+    * Because, in some sense, these cannot be misspecified
+    * (I think) our setting ends up falling into this setting---effectively, we are fully nonparametric in groups/time periods
+
+## Sampling Weights
+
+[Tentative Heuristic Advice:]{.alert}
+
+* If you have unit-level data (e.g., job displacement example) and there are sampling weights, use them
+
+* If you have aggregate data (e.g., county-level data), but you are interested in effects at level of underlying unit (e.g., person-level), then you should consider using sampling weights
+    * Possibly depends on nature of the outcome variable too: employment vs. log(employment) vs. per capita employment
+
+## Sampling Weights in Min. Wage Example
+
+```{r}
+#| eval: false
+#| code-line-numbers: "|1,2,3|11"
+# create weights based on population
+data2$pop <- exp(data2$lpop)
+data2$avg_pop <- BMisc::get_Yibar(data2, "id", "pop")
+attgt_sw <- did::att_gt(yname="lemp",
+                        idname="id",
+                        gname="G",
+                        tname="year",
+                        data=data2,
+                        control_group="nevertreated",
+                        base_period="universal",
+                        weightsname="avg_pop")
+ggdid(aggte(attgt_sw, type="dynamic"))
+```
+
+## Sampling Weights in Min. Wage Example
+
+```{r}
+#| echo: false
+#| code-line-numbers: "|1,2,3|11"
+# create weights based on population
+data2$pop <- exp(data2$lpop)
+data2$avg_pop <- BMisc::get_Yibar(data2, "id", "pop")
+attgt_sw <- did::att_gt(yname="lemp",
+                        idname="id",
+                        gname="G",
+                        tname="year",
+                        data=data2,
+                        control_group="nevertreated",
+                        base_period="universal",
+                        weightsname="avg_pop")
+ggdid(aggte(attgt_sw, type="dynamic"))
+```
+
+## Replace log(Employment) with Employment Rate
+
+```{r}
+#| eval: false
+#| code-line-numbers: "|1,2|9"
+data2$emp_rate <- exp(data2$lemp)/data2$pop
+attgt_er <- did::att_gt(yname="emp_rate",
+                        idname="id",
+                        gname="G",
+                        tname="year",
+                        data=data2,
+                        control_group="nevertreated",
+                        base_period="universal",
+                        weightsname="avg_pop")
+ggdid(aggte(attgt_er, type="dynamic"))
+```
+
+
+## Replace log(Employment) with Employment Rate
+
+```{r}
+#| echo: false
+#| code-line-numbers: "|1,2|9"
+data2$emp_rate <- exp(data2$lemp)/data2$pop
+attgt_er <- did::att_gt(yname="emp_rate",
+                        idname="id",
+                        gname="G",
+                        tname="year",
+                        data=data2,
+                        control_group="nevertreated",
+                        base_period="universal",
+                        weightsname="avg_pop")
+ggdid(aggte(attgt_er, type="dynamic"))
+```
+
+<!--## Replace log(Employment) with Employment Rate
+
+```{r}
+#| eval: false
+# Same plot but with a varying base period
+data2$emp_rate <- exp(data2$lemp)/data2$pop
+attgt_erv <- did::att_gt(yname="emp_rate",
+                         idname="id",
+                         gname="G",
+                         tname="year",
+                         data=data2,
+                         control_group="nevertreated",
+                         base_period="varying",
+                         weightsname=NULL)
+ggdid(aggte(attgt_erv, type="dynamic"))
+```
+
+## Replace log(Employment) with Employment Rate
+
+```{r}
+#| echo: false
+# Same plot but with a varying base period
+data2$emp_rate <- exp(data2$lemp)/data2$pop
+attgt_erv <- did::att_gt(yname="emp_rate",
+                         idname="id",
+                         gname="G",
+                         tname="year",
+                         data=data2,
+                         control_group="nevertreated",
+                         base_period="varying",
+                         weightsname=NULL)
+ggdid(aggte(attgt_erv, type="dynamic"))
+```
+
+-->
+
+# Inference / Clustered Standard Errors {visibility="uncounted"}
+
+## Introduction
+
+There are a number of complications that can arise for inference in DID settings:
+
+1. Serial correlation
+
+2. Fixed population inference
+
+3. Small number of treated units
+
+4. Clustered treatment assignment
+
+5. Multiple hypothesis testing
+
+## Examples
+
+Different issues related to inference arise given different types of data, all of which are common in DID applications.
+
+. . .
+
+Here are a few leading examples:
+
+1. Unit-level treatments, units sampled from a large population.
+
+    * Example: Job displacement
+
+2. Aggregate treatments, aggregate data
+
+    * Example: State-level policy, studied with state-level data
+
+    * Also: try to answer the question what happens if you observe the entire population?
+
+3. Aggregate treatments, underlying unit-level data
+
+    * Example: State level policies studied with individual- or county-level data.
+
+
+
+
+## Serial Correlation
+
+Probably the most common inference issue in DID settings is serial correlation.
+
+Sample consists of:
+
+$$\{Y_{i1}, Y_{i2}, \ldots, Y_{iT}, D_{i1}, D_{i2}, \ldots D_{iT} \}_{i=1}^n$$
+
+which are iid across units, drawn from a "super-population", and where the number of units in each group is "large".  This is a common sampling scheme in panel data applications (e.g., job displacement).
+
+. . .
+
+This sampling scheme allows for outcomes to be arbitrarily correlated across time periods.
+
+$$Y_{it}(0) = \theta_t + \eta_i + e_{it}$$
+
+* Ignoring serial correlation can lead to incorrect standard errors and confidence intervals (@bertrand-duflo-mullainathan-2004).
+
+* Instead of modeling the serial correlation, it is most common to cluster at the unit level (i.e., allow for arbitrary serial correlation within units).
+
+* Most (all?) software implementations can accommodate serial correlation (often by default).
+
+## Fixed Population Inference
+
+The previous discussion has emphasized traditional sampling uncertainty arising from drawing a sample from an underlying super-population.
+
+In many DID applications, we observe the entire population of interest (e.g., all 50 states).
+
+* Does this means that we "know" the $ATT$?...probably not.
+
+## Fixed Population Inference
+
+One possibility is to condition on (i.e., treat as fixed/non-random) $(G_i, \theta_t, \eta_i)$ while treating as random $e_{it}$.
+
+* Intuition: repeated sampling thought experiment where we redraw $e_{it} \sim (\mu_i, \sigma^2_i)$ for each unit $i$ and time period $t$ while unit fixed effects, time fixed effects, and treatment status are held fixed.
+
+* Adjusted target parameter: mean of finite sample $ATT$ across repeated samples $$ATT(g,t) := \frac{1}{n_g} \sum_{G_i=g} \E[Y_{t} - Y_{t}(0) | G_i=g]$$
+
+* Adjusted parallel trends: mean of finite sample parallel trends across repeated samples $$\frac{1}{n_g} \sum_{G_i=g} \E[\Delta Y_{t}(0) | G_i=g] - \frac{1}{n_\infty} \sum_{G_i=\infty} \E[\Delta Y_{t}(0) | U_i=1]$$
+
+$\implies$ somewhat different interpretation, but use same $\widehat{ATT}$ and constructing unconditional standard errors (i.e., same as before) can be conservative in this case.  See @borusyak-jaravel-spiess-2024, for example.
+
+## Few Treated Clusters with Aggregate Data
+
+What if the number of treated units is small (e.g., 1 treated unit)? <!-- similar argument with 1 cluster-->
+
+In this case, if there is one treated unit, we can often come up with an unbiased (though not consistent) estimator of the $ATT$.
+
+For inference, there are a number of ideas, often involving some kind of permutation test
+
+* See, for example, @conley-taber-2011, @ferman-2019, @hagemann-2019, @roth-santanna-2023b for examples
+
+* These approaches often require auxiliary assumptions such as restrictions on heteroskedasiticity or differences in cluster sizes
+
+
+## Clustered Treatment Assignment
+
+Many DID applications have clustered treatment assignment---all units within the same cluster (e.g., a state) have the same treatment status/timing.
+
+The most common approach in this setting is to cluster at the level of the treatment.
+
+* When we additionally cluster at the unit level (to allow for serial correlation), this is often referred to as two-way clustering.  Most software implementations readily allow for this.
+
+To rationalize conducting inference in this way typically requires a large number of both treated and untreated clusters.
+
+* This rules out certain leading applications such as the @card-krueger-1994 minimum wage study, where the only clusters are New Jersey and Pennsylvania.
+
+## Clustered Treatment Assignment
+
+Can we conduct inference in cases where there are only two clusters (but we observe underlying data)?
+
+* Yes, but it may require additional assumptions.
+
+* Let's start with the setting where there are exactly two clusters.  Then (for simplicity just focusing on untreated potential outcomes),
+\begin{align*}
+  Y_{ij,t}(0) &= \theta_t + \eta_i + e_{ij,t} \\
+  &= \theta_t + \eta_i + \underbrace{\nu_{j,t} + \epsilon_{ij,t}}
+\end{align*}
+where $\nu_{j,t}$ is a cluster-specific time-varying error term and $\epsilon_{ij,t}$ are idiosyncratic, time-varying unobservables (possibly serially correlated but independent across units).
+
+* $\nu_{j,t}$ is often viewed as a common cluster-specific shock that affects all units in the cluster (e.g., some other state-level policy).
+
+* For inference with two clusters, we need $\nu_{j,t}=0$.
+    * Without this condition, parallel trends would be violated.
+    * If holds, then we can cluster at the unit-level rather than the cluster-level $\implies$ possible to conduct inference.
+
+
+## Comparing Different Strategies
+
+Suppose that we are studying a policy that is implemented in a few states.
+
+[Option 1: Include a large number of states, cluster at state-level]{.alert-blue}
+
+* For clustering: We may only need the weaker condition that $\E[\nu_{j,t} | G_i] = 0$.
+
+* For identification: less robust to small violations of parallel trends.
+
+[Option 2: Only include a few similar states, cluster at unit-level]{.alert-blue}
+
+* For clustering: We need the stronger condition that $\nu_{j,t}=0$.
+
+* For identification: possibly more robust to small violations of parallel trends.
+
+In my view, there is a fairly strong case for (in many applications) using tighter comparisons with a smaller number of clusters while arguing that $\nu_{j,t}=0$ by a combination of
+
+* researcher legwork
+
+* pre-testing
+
+## Further Reading on Clustering
+
+* @conley-goncalves-hansen-2018 - on clustering in general
+
+* @roth-santana-bilinski-poe-2023 - on clustering in the context of DID
+
+## Multiple Hypothesis Testing
+
+If you report multiple hypothesis tests and/or confidence intervals---e.g., an event study---it's a good idea to make an adjustment for multiple hypothesis testing.
+
+[sup-t confidence band]{.alert-blue}---construct confidence intervals of the form
+$$\Big[\widehat{ATT}^{es}(e) \pm \hat{c}_{1-\alpha/2} \textrm{s.e.}\big(\widehat{ATT}^{es}(e)\big) \Big]$$
+but instead of choosing the critical value as a quantile of the normal distribution, choose a (slightly) larger critical value that accounts for the fact that you are testing multiple hypotheses.
+
+* Typically, an appropriate choice for the critical value to ensure the correct (uniform) coverage requires resampling methods.
+
+* The reason for this is that the appropriate critical value depends on the joint distribution of $\sqrt{n}(\widehat{ATT}^{es}(e) - ATT^{es}(e))$ across all $e$, and these are generally not independent of each other.
+
+* That said, this is not too difficult in practice, and is a default option in the `did` package.
+
+## Min. Wage w/o uniform confidence bands
+
+```{r}
+#| eval: false
+#| code-line-numbers: "|10|11"
+# note: these are the varying base period results
+# that were "just barely" not statistically significant
+# in pre-treatment periods
+attgt_poi <- did::att_gt(yname="lemp",
+                         idname="id",
+                         gname="G",
+                         tname="year",
+                         data=data2,
+                         control_group="nevertreated",
+                         base_period="varying",
+                         cband=FALSE)
+ggdid(aggte(attgt_poi,type="dynamic",cband=FALSE))
+```
+
+
+## Min. Wage w/o uniform confidence bands
+
+```{r}
+#| echo: false
+#| code-line-numbers: "|10|11"
+# note: these are the varying base period results
+# that were "just barely" not statistically significant
+# in pre-treatment periods
+attgt_poi <- did::att_gt(yname="lemp",
+                         idname="id",
+                         gname="G",
+                         tname="year",
+                         data=data2,
+                         control_group="nevertreated",
+                         base_period="varying",
+                         cband=FALSE)
+ggdid(aggte(attgt_poi,type="dynamic",cband=FALSE))
+```
+
+## Min. Wage w/ uniform confidence bands
+
+```{r}
+# critical value for uniform confidence band
+# computed using resamplin
+attgt$c
+```
+
+# Appendix {visibility="uncounted"}
+
+# References {visibility="uncounted"}
+
+::: {#refs}
+:::
